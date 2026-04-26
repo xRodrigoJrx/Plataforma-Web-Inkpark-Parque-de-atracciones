@@ -624,7 +624,7 @@ a {
 }
 
 .navbar.nav-solid {
-  background: var(--inca-brown) !important;
+  background: #264653 !important;
   box-shadow: 0 10px 28px rgba(0, 0, 0, .25);
 }
 
