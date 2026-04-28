@@ -153,4 +153,31 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     input.focus();
   });
+
+  /* ========= Animación sutil para tarjetas al pasar mouse ========= */
+  (() => {
+    const cards = document.querySelectorAll(".card");
+    if (!cards.length) return;
+
+    cards.forEach(card => {
+      // Guardar estilos originales
+      let originalTransform = card.style.transform;
+      let originalTransition = card.style.transition;
+      let originalBoxShadow = card.style.boxShadow;
+      
+      // Aplicar transición suave
+      card.style.transition = "transform 0.3s ease, box-shadow 0.3s ease";
+      
+      // Eventos mouse
+      card.addEventListener("mouseenter", () => {
+        card.style.transform = "translateY(-6px)";
+        card.style.boxShadow = "0 10px 20px rgba(0,0,0,0.1)";
+      });
+      
+      card.addEventListener("mouseleave", () => {
+        card.style.transform = originalTransform;
+        card.style.boxShadow = originalBoxShadow;
+      });
+    });
+  })();
 });
