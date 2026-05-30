@@ -5,32 +5,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const links = document.querySelectorAll(".navbar .nav-link");
     if (!links.length) return;
 
-    // pathname normalizado: "/" -> "inicio"
-    const raw = location.pathname.replace(/\/+$/, "");       // quita "/" final
-    const path = raw === "" || raw === "/" ? "inicio" : raw; // "/" => "inicio"
+    const raw = location.pathname.replace(/\/+$/, "");
+    const path = raw === "" || raw === "/" ? "inicio" : raw;
 
     links.forEach(a => {
-      // Soporta href="/atracciones" y href="atracciones.html"
       const href = a.getAttribute("href") || a.getAttribute("th:href") || "";
-      // Normaliza destino
       let dest = href.trim();
 
-      // Si viene como Thymeleaf resuelto, será "/atracciones" o "/"
-      // Si es archivo, será "atracciones.html"
       if (dest === "/" || dest === "/inicio") dest = "inicio";
 
-      // Quita dominio, query y hash
       dest = dest.replace(location.origin, "").split("?")[0].split("#")[0];
-      // "/atracciones" -> "atracciones"
       dest = dest.replace(/^\/+/, "");
-      // "atracciones.html" -> "atracciones"
       dest = dest.replace(/\.html$/i, "");
       if (dest === "") dest = "inicio";
 
-      // Normaliza path actual igual que dest
       let current = path.replace(/^\/+/, "").replace(/\.html$/i, "");
       if (current === "") current = "inicio";
-      if (current === "tickets") current = "ticket"; // por si mezclas singular/plural
+      if (current === "tickets") current = "ticket";
 
       if (dest === current) {
         a.classList.add("nav-current", "active");
@@ -53,6 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
         nav.classList.remove("nav-solid");
       }
     };
+
     setState();
     window.addEventListener("scroll", setState, { passive: true });
   })();
@@ -61,8 +53,10 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("click", (e) => {
     const a = e.target.closest('a[href^="#"]');
     if (!a) return;
+
     const id = a.getAttribute("href").slice(1);
     const el = document.getElementById(id);
+
     if (el) {
       e.preventDefault();
       el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -91,14 +85,16 @@ document.addEventListener("DOMContentLoaded", () => {
     els.forEach(el => io.observe(el));
   })();
 
-  /* ========= Hero slider (si hay múltiples <img> dentro de .hero-media) ========= */
+  /* ========= Hero slider ========= */
   (() => {
     const media = document.querySelector(".hero-media");
     if (!media) return;
+
     const imgs = Array.from(media.querySelectorAll("img"));
     if (imgs.length <= 1) return;
 
     media.style.position = "relative";
+
     imgs.forEach((img, i) => {
       img.style.position = "absolute";
       img.style.inset = "0";
@@ -110,10 +106,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     let idx = 0;
+
     setInterval(() => {
       const current = imgs[idx];
       idx = (idx + 1) % imgs.length;
       const next = imgs[idx];
+
       current.style.opacity = "0";
       next.style.opacity = "1";
     }, 8000);
@@ -123,35 +121,67 @@ document.addEventListener("DOMContentLoaded", () => {
   (() => {
     const forms = document.querySelectorAll(".needs-validation");
     if (!forms.length) return;
+
     Array.prototype.slice.call(forms).forEach((form) => {
       form.addEventListener("submit", (event) => {
         if (!form.checkValidity()) {
           event.preventDefault();
           event.stopPropagation();
         }
+
         form.classList.add("was-validated");
       }, false);
     });
   })();
 
-  /* ========= Toggle contraseña (delegado, sirve en cualquier página) ========= */
+  /* ========= Normalizar email en formularios ========= */
+  (() => {
+    const emailInputs = document.querySelectorAll('input[type="email"]');
+    if (!emailInputs.length) return;
+
+    emailInputs.forEach((input) => {
+      input.addEventListener("blur", () => {
+        input.value = input.value.trim().toLowerCase();
+      });
+    });
+  })();
+
+  /* ========= Toggle contraseña ========= */
   document.addEventListener("click", (e) => {
-    const btn = e.target.closest(".password-toggle");
+    const btn = e.target.closest(".password-toggle, [data-password-toggle]");
     if (!btn) return;
 
-    const targetId = btn.getAttribute("data-target");
-    const input = document.getElementById(targetId);
-    if (!input) return;
+    const targetId = btn.dataset.target || btn.getAttribute("aria-controls");
+    const input = targetId ? document.getElementById(targetId) : null;
+
+    if (!input || !(input instanceof HTMLInputElement)) return;
+
+    const mostrarContrasena = input.type === "password";
+
+    input.type = mostrarContrasena ? "text" : "password";
+
+    const label = mostrarContrasena
+      ? "Ocultar contraseña"
+      : "Mostrar contraseña";
+
+    btn.setAttribute("aria-label", label);
+    btn.setAttribute("aria-pressed", String(mostrarContrasena));
+    btn.setAttribute("title", label);
 
     const icon = btn.querySelector("i");
-    if (input.type === "password") {
-      input.type = "text";
-      if (icon) { icon.classList.remove("fa-eye"); icon.classList.add("fa-eye-slash"); }
-    } else {
-      input.type = "password";
-      if (icon) { icon.classList.remove("fa-eye-slash"); icon.classList.add("fa-eye"); }
+
+    if (icon) {
+      icon.classList.toggle("fa-eye", !mostrarContrasena);
+      icon.classList.toggle("fa-eye-slash", mostrarContrasena);
     }
-    input.focus();
+
+    const hiddenText = btn.querySelector(".visually-hidden");
+
+    if (hiddenText) {
+      hiddenText.textContent = label;
+    }
+
+    input.focus({ preventScroll: true });
   });
 
   /* ========= Animación sutil para tarjetas al pasar mouse ========= */
@@ -160,20 +190,16 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!cards.length) return;
 
     cards.forEach(card => {
-      // Guardar estilos originales
-      let originalTransform = card.style.transform;
-      let originalTransition = card.style.transition;
-      let originalBoxShadow = card.style.boxShadow;
-      
-      // Aplicar transición suave
+      const originalTransform = card.style.transform;
+      const originalBoxShadow = card.style.boxShadow;
+
       card.style.transition = "transform 0.3s ease, box-shadow 0.3s ease";
-      
-      // Eventos mouse
+
       card.addEventListener("mouseenter", () => {
         card.style.transform = "translateY(-6px)";
         card.style.boxShadow = "0 10px 20px rgba(0,0,0,0.1)";
       });
-      
+
       card.addEventListener("mouseleave", () => {
         card.style.transform = originalTransform;
         card.style.boxShadow = originalBoxShadow;
