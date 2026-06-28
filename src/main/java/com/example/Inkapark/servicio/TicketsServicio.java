@@ -31,13 +31,13 @@ public class TicketsServicio {
     private int aforoDefault;
 
     @Value("${incapark.tickets.precio:50.00}")
-    private BigDecimal precioTicket; 
+    private BigDecimal precioTicket;
 
     public TicketsServicio(ManejoAforoRepositorio aforoRepo,
-                           BoletaRepositorio boletaRepo,
-                           PagoRepositorio pagoRepo,
-                           EmailServicio emailServicio,
-                           PdfServicio pdfServicio) {
+            BoletaRepositorio boletaRepo,
+            PagoRepositorio pagoRepo,
+            EmailServicio emailServicio,
+            PdfServicio pdfServicio) {
 
         this.aforoRepo = aforoRepo;
         this.boletaRepo = boletaRepo;
@@ -71,48 +71,72 @@ public class TicketsServicio {
     }
 
     private Pago.TipoTarjeta detectarTipoTarjeta(String numero) {
-        if (numero == null || numero.isBlank()) return Pago.TipoTarjeta.OTRA;
+        if (numero == null || numero.isBlank()) {
+            return Pago.TipoTarjeta.OTRA;
+        }
         char first = numero.charAt(0);
         return switch (first) {
-            case '1' -> Pago.TipoTarjeta.VISA;
-            case '2' -> Pago.TipoTarjeta.MASTERCARD;
-            case '3' -> Pago.TipoTarjeta.AMEX;
-            case '4' -> Pago.TipoTarjeta.DINERS;
-            default  -> Pago.TipoTarjeta.OTRA;
+            case '1' ->
+                Pago.TipoTarjeta.VISA;
+            case '2' ->
+                Pago.TipoTarjeta.MASTERCARD;
+            case '3' ->
+                Pago.TipoTarjeta.AMEX;
+            case '4' ->
+                Pago.TipoTarjeta.DINERS;
+            default ->
+                Pago.TipoTarjeta.OTRA;
         };
     }
 
     /**
-     * Pago con tarjeta:
-     * - Bloquea aforo
-     * - Valida stock
-     * - Crea Boleta
-     * - Crea Pago (con tarjeta)
-     * - Actualiza aforo
-     * - Genera PDFs
-     * - Envía correo
+     * Pago con tarjeta: - Bloquea aforo - Valida stock - Crea Boleta - Crea
+     * Pago (con tarjeta) - Actualiza aforo - Genera PDFs - Envía correo
      */
     @Transactional
     public String pagarConTarjeta(Usuario usuario,
-                                  LocalDate fecha,
-                                  int cantidad,
-                                  String numeroTarjeta,
-                                  String cvv,
-                                  String vencimiento,
-                                  String telefono,
-                                  String direccion,
-                                  java.util.function.Supplier<String> idBoleta) {
+            LocalDate fecha,
+            int cantidad,
+            String numeroTarjeta,
+            String cvv,
+            String vencimiento,
+            String telefono,
+            String direccion,
+            java.util.function.Supplier<String> idBoleta) {
+
+        if (usuario == null) {
+            throw new IllegalArgumentException("Usuario requerido para procesar el pago");
+        }
+
+        if (fecha == null) {
+            throw new IllegalArgumentException("Fecha de visita requerida");
+        }
 
         if (cantidad < 1) {
             throw new IllegalArgumentException("Cantidad inválida");
         }
 
         String numClean = numeroTarjeta == null ? "" : numeroTarjeta.replaceAll("\\s+", "");
-        if (numClean.length() != 16) {
+        if (!numClean.matches("\\d{16}")) {
             throw new IllegalArgumentException("Número de tarjeta inválido");
         }
-        if (cvv == null || cvv.length() != 3) {
+
+        if (cvv == null || !cvv.matches("\\d{3}")) {
             throw new IllegalArgumentException("CVV inválido");
+        }
+
+        if (vencimiento == null || !vencimiento.matches("(0[1-9]|1[0-2])/\\d{2}")) {
+            throw new IllegalArgumentException("Fecha de vencimiento inválida");
+        }
+
+        String telefonoClean = telefono == null ? "" : telefono.trim();
+        if (!telefonoClean.matches("\\d{9}")) {
+            throw new IllegalArgumentException("Teléfono inválido");
+        }
+
+        String direccionClean = direccion == null ? "" : direccion.trim();
+        if (direccionClean.isBlank()) {
+            throw new IllegalArgumentException("Dirección obligatoria");
         }
 
         ManejoAforo af = aforoRepo.lockByFecha(fecha)
@@ -124,7 +148,6 @@ public class TicketsServicio {
 
         String id = idBoleta.get();
 
-        // Boleta
         Boleta b = new Boleta();
         b.setIdBoleta(id);
         b.setUsuario(usuario);
@@ -134,28 +157,24 @@ public class TicketsServicio {
         b.setEstado(Boleta.Estado.VIGENTE);
         boletaRepo.save(b);
 
-        // Pago
         Pago p = new Pago();
         p.setBoleta(b);
         p.setMetodo(Pago.Metodo.TARJETA);
         p.setTipoTarjeta(detectarTipoTarjeta(numClean));
-        p.setNumeroTarjeta(numClean);  // número largo que pediste
-        p.setCvvEnc(cvv);              // se cifra con SimpleEncryptor
+        p.setNumeroTarjeta(numClean);
+        p.setCvvEnc(cvv);
         p.setFechaVencEnc(vencimiento);
         p.setMonto(b.getPrecio());
         p.setEstado(Pago.Estado.CONFIRMADO);
         p.setFechaPago(java.time.LocalDateTime.now());
         pagoRepo.save(p);
 
-        // Aforo
         af.setAforoDisponible(af.getAforoDisponible() - cantidad);
         aforoRepo.save(af);
 
-        // PDFs
-        byte[] pdfComprobante = pdfServicio.generarComprobantePago(usuario, b, p, telefono, direccion);
+        byte[] pdfComprobante = pdfServicio.generarComprobantePago(usuario, b, p, telefonoClean, direccionClean);
         byte[] pdfBoletos = pdfServicio.generarBoletos(usuario, b);
 
-        // Email
         emailServicio.enviarComprobantePagoTarjeta(usuario, b, p, pdfComprobante, pdfBoletos);
 
         return id;
