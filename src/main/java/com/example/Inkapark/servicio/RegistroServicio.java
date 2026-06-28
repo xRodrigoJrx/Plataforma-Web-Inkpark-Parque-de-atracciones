@@ -1,13 +1,5 @@
 package com.example.Inkapark.servicio;
 
-import com.example.Inkapark.modelo.Usuario;
-import com.example.Inkapark.repositorio.UsuarioRepositorio;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -15,42 +7,71 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.example.Inkapark.modelo.Usuario;
+import com.example.Inkapark.repositorio.UsuarioRepositorio;
+
 @Service
 public class RegistroServicio {
 
     private final UsuarioRepositorio usuarioRepo;
-    private final EmailServicio emailServicio;    
-    private final PasswordEncoder encoder;      
+    private final EmailServicio emailServicio;
+    private final PasswordEncoder encoder;
 
-    private static final Pattern GMAIL_REGEX =
-            Pattern.compile("^[A-Za-z0-9._%+-]+@gmail\\.com$");
+    private static final Pattern GMAIL_REGEX
+            = Pattern.compile("^[A-Za-z0-9._%+-]+@gmail\\.com$");
 
     // Lee la URL base desde properties; por defecto localhost
     @Value("${app.base-url:http://localhost:8080}")
     private String urlBase;
 
     public RegistroServicio(UsuarioRepositorio usuarioRepo,
-                            EmailServicio emailServicio,
-                            ObjectProvider<PasswordEncoder> encoderProvider) {
+            EmailServicio emailServicio,
+            ObjectProvider<PasswordEncoder> encoderProvider) {
         this.usuarioRepo = usuarioRepo;
         this.emailServicio = emailServicio;
         this.encoder = encoderProvider.getIfAvailable(); // null si no hay bean
     }
 
-    // ---------- REGISTRO ----------
     @Transactional
     public void registrarCliente(String nombre, String correo, String contrasena) {
+        nombre = nombre == null ? null : nombre.trim();
         correo = normalizarCorreo(correo);
+
+        if (nombre == null || nombre.isBlank()) {
+            throw new IllegalArgumentException("El nombre es obligatorio.");
+        }
+
+        if (nombre.length() > 100) {
+            throw new IllegalArgumentException("El nombre no debe exceder 100 caracteres.");
+        }
+
+        if (contrasena == null || contrasena.isBlank()) {
+            throw new IllegalArgumentException("La contraseña es obligatoria.");
+        }
+
+        if (contrasena.length() < 6) {
+            throw new IllegalArgumentException("La contraseña debe tener al menos 6 caracteres.");
+        }
+
         validarSoloGmail(correo);
 
         Optional<Usuario> existenteOpt = usuarioRepo.findByCorreo(correo);
         if (existenteOpt.isPresent()) {
             Usuario existente = existenteOpt.get();
+
             if (existente.isVerificado()) {
                 throw new IllegalStateException("El correo ya está registrado y verificado.");
             }
-            // existe pero no verificado → regenerar token y reenviar
+
             String nuevoToken = UUID.randomUUID().toString();
+            existente.setNombre(nombre);
+            existente.setContrasena(encriptarContrasena(contrasena));
             existente.setTokenVerificacion(nuevoToken);
             existente.setTokenExpira(LocalDateTime.now().plusHours(24));
             usuarioRepo.save(existente);
@@ -60,7 +81,6 @@ public class RegistroServicio {
             return;
         }
 
-        // crear nuevo usuario pendiente de verificación
         Usuario nuevo = new Usuario();
         nuevo.setNombre(nombre);
         nuevo.setCorreo(correo);
@@ -82,7 +102,9 @@ public class RegistroServicio {
         Usuario u = usuarioRepo.findByCorreo(correo)
                 .orElseThrow(() -> new IllegalArgumentException("Enlace inválido: usuario no encontrado."));
 
-        if (u.isVerificado()) return;
+        if (u.isVerificado()) {
+            return;
+        }
 
         if (u.getTokenVerificacion() == null || !u.getTokenVerificacion().equals(token)) {
             throw new IllegalArgumentException("Token de verificación inválido.");
@@ -120,9 +142,9 @@ public class RegistroServicio {
     // ---------- HELPERS ----------
     private String construirLinkVerificacion(String correo, String token) {
         // IMPORTANTE: ruta del controlador es /auth/verificar
-        return urlBase + "/auth/verificar?email=" +
-                URLEncoder.encode(correo, StandardCharsets.UTF_8) +
-                "&token=" + URLEncoder.encode(token, StandardCharsets.UTF_8);
+        return urlBase + "/auth/verificar?email="
+                + URLEncoder.encode(correo, StandardCharsets.UTF_8)
+                + "&token=" + URLEncoder.encode(token, StandardCharsets.UTF_8);
     }
 
     private String normalizarCorreo(String correo) {
