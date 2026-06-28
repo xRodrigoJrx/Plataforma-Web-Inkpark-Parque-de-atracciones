@@ -33,7 +33,7 @@ public class ContactoMensajeServicio {
         this.emailServicio = emailServicio;
     }
 
-    // 1) Guardar desde el formulario público
+// 1) Guardar desde el formulario público
     public ContactoMensaje guardarDesdeFormulario(String nombre, String correo, String asunto, String mensaje) {
         nombre = safeTrim(nombre);
         correo = safeTrimLower(correo);
@@ -43,20 +43,34 @@ public class ContactoMensajeServicio {
         if (isBlank(nombre)) {
             throw new IllegalArgumentException("El nombre es obligatorio.");
         }
+
         if (isBlank(correo) || !EMAIL_REGEX.matcher(correo).matches()) {
             throw new IllegalArgumentException("Correo inválido.");
         }
+
         if (isBlank(asunto)) {
             throw new IllegalArgumentException("El asunto es obligatorio.");
         }
+
         if (isBlank(mensaje)) {
             throw new IllegalArgumentException("El mensaje es obligatorio.");
         }
 
-        // aplica límites
-        nombre = truncate(nombre, MAX_NOMBRE);
-        correo = truncate(correo, MAX_CORREO);
-        asunto = truncate(asunto, MAX_ASUNTO);
+        if (nombre.length() > MAX_NOMBRE) {
+            throw new IllegalArgumentException("El nombre excede el máximo permitido.");
+        }
+
+        if (correo.length() > MAX_CORREO) {
+            throw new IllegalArgumentException("El correo excede el máximo permitido.");
+        }
+
+        if (asunto.length() > MAX_ASUNTO) {
+            throw new IllegalArgumentException("El asunto excede el máximo permitido.");
+        }
+
+        if (mensaje.length() > 2000) {
+            throw new IllegalArgumentException("El mensaje excede el máximo permitido.");
+        }
 
         ContactoMensaje m = new ContactoMensaje();
         m.setNombre(nombre);
