@@ -20,9 +20,6 @@ El objetivo principal es brindar una experiencia digital clara para los visitant
 - [GitHub Actions](#github-actions)
 - [Documentación](#documentación)
 - [Flujo de trabajo](#flujo-de-trabajo)
-- [Autores](#autores)
-- [Proyecto académico](#proyecto-académico)
-- [Colaboración](#colaboración)
 ---
 ## Acerca del proyecto
 
@@ -178,21 +175,3 @@ Issue → Branch → Desarrollo → Commit → Push → Pull Request → GitHub 
 | Desarrollo | Realiza el cambio correspondiente. |
 | Commit | Guarda avances con mensajes claros. |
 ---
-## Autores
-
-| Integrante | Participación |
-|---|---|
-| Rodrigo Esteban / Rodrigo Rubina | Desarrollo y documentación del proyecto. |
-| RK-byte07 | Desarrollo y mantenimiento del proyecto. |
----
-## Proyecto académico
-
-InkaPark fue desarrollado con fines académicos como proyecto web con Java, Spring Boot, Maven, MySQL, HTML, CSS, JavaScript, GitHub Projects y GitHub Actions.
----
-## Colaboración
-
-1. Crea un **Issue** para reportar errores, registrar mejoras o documentar una tarea.
-2. Revisa **GitHub Projects** para conocer el avance del trabajo.
-3. Crea una rama descriptiva para desarrollar tu cambio.
-4. Sube tus commits y abre un **Pull Request** hacia `master`.
-5. Espera la validación de GitHub Actions y la revisión del equipo.
