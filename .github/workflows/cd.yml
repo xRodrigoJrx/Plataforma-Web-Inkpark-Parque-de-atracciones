@@ -5,7 +5,7 @@ on:
     branches: ["master"]
 
 jobs:
-  deploy:
+  package:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,8 +22,18 @@ jobs:
       - name: Generar archivo ejecutable
         run: mvn clean package -DskipTests
 
-      - name: Publicar artefacto
+      - name: Preparar paquete de ejecución
+        run: |
+          mkdir -p dist
+          cp target/*.jar dist/
+          cp src/main/resources/application-example.properties dist/
+          cp README-EJECUCION.md dist/
+          cp -r database dist/database
+
+      - name: Publicar paquete como artifact
         uses: actions/upload-artifact@v4
         with:
           name: inkapark-aplicacion
-          path: target/*.jar
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
